@@ -1,0 +1,27 @@
+{
+  "name": "avdeev-sport-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node ./src/entryPoints/index.ts",
+    "cron:start": "forever start -v -c ts-node ./src/crontask/index.ts",
+    "cron:stop": "forever stop -v -c ts-node ./src/crontask/index.ts",
+    "cron:restart": "npm run cron:stop && npm run cron:start"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.3",
+    "dotenv": "^16.4.5",
+    "forever": "^4.0.3",
+    "fs": "^0.0.1-security",
+    "node-cron": "^3.0.3",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  }
+}
