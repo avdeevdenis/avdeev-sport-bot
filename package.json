@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node ./src/entryPoints/index.ts",
+    "dev": "ts-node ./src/run/index",
     "cron:start": "forever start -v -c ts-node ./src/crontask/index.ts",
     "cron:stop": "forever stop -v -c ts-node ./src/crontask/index.ts",
     "cron:restart": "npm run cron:stop && npm run cron:start"

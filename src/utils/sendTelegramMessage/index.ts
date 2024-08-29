@@ -9,6 +9,9 @@ let AvdeevSportBotInstance = null;
  */
 const STATIC_CHAT_ID = '-4503094230';
 
+// А это мой ID-шник :)
+// const STATIC_CHAT_ID = '348916796';
+
 export const sendTelegramMessage = async (messageText: string): Promise<void> => {
   if (!messageText || !messageText.length) {
     return Promise.resolve();

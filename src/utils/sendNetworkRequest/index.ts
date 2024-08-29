@@ -1,6 +1,13 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import { AxiosResponseYClientsSearchDates, AxiosResponseYClientsFreePlaces, AxiosResponseYClientsCommon } from '../../typings';
 
-export const sendNetworkRequest = (url: string, config: AxiosRequestConfig): Promise<AxiosResponse> => {
+// Специфический тип для конкретного проекта/задачи
+type AxiosReponseYClients = AxiosResponse & AxiosResponseYClientsCommon & (
+  AxiosResponseYClientsSearchDates |
+  AxiosResponseYClientsFreePlaces
+);
+
+export const sendNetworkRequest = (url: string, config: AxiosRequestConfig): Promise<AxiosReponseYClients> => {
   return new Promise((resolve, reject) => {
     axios(url, config)
       .then((response) => {

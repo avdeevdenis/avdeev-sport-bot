@@ -12,7 +12,7 @@ export const getJSONFileContent = async (filePath: string) => {
     return false;
   }
 
-  let fileContentJSON = {};
+  let fileContentJSON = null;
 
   if (fileContent.length) {
     try {
