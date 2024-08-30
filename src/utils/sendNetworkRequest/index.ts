@@ -1,5 +1,7 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { AxiosResponseYClientsSearchDates, AxiosResponseYClientsFreePlaces, AxiosResponseYClientsCommon } from '../../typings';
+import { debugLog } from 'avdeev-utils';
+import { DEBUG_FILEPATH } from '../../entryPoints';
 
 // Специфический тип для конкретного проекта/задачи
 type AxiosReponseYClients = AxiosResponse & AxiosResponseYClientsCommon & (
@@ -7,8 +9,10 @@ type AxiosReponseYClients = AxiosResponse & AxiosResponseYClientsCommon & (
   AxiosResponseYClientsFreePlaces
 );
 
-export const sendNetworkRequest = (url: string, config: AxiosRequestConfig): Promise<AxiosReponseYClients> => {
-  return new Promise((resolve, reject) => {
+export const sendNetworkRequest = async (url: string, config: AxiosRequestConfig): Promise<AxiosReponseYClients> => {
+  return new Promise(async (resolve, reject) => {
+    await debugLog(DEBUG_FILEPATH, `[sendNetworkRequest] Send request to '${url}'`);
+
     axios(url, config)
       .then((response) => {
         if (!response || !response.data) {

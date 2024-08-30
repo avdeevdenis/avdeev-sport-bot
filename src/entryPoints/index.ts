@@ -4,12 +4,11 @@ require('dotenv').config();
 // https://stackoverflow.com/questions/65289566/node-telegram-bot-api-deprecated-automatic-enabling-of-cancellation-of-promises
 process.env.NTBA_FIX_319 = '1';
 
-import { saveFileContent } from '../utils/saveFileContent';
-import { getJSONFileContent } from '../utils/getJSONFileContent';
 import { sendNetworkRequest } from '../utils/sendNetworkRequest';
 import { sendTelegramMessage } from '../utils/sendTelegramMessage';
 import { AxiosResponseYClientsSearchDates, AxiosResponseYClientsFreePlaces, SearchDates, FreePlace, AxiosResponseYClientsFreePlaceItem } from '../typings';
 import { delay } from '../utils/delay';
+import { debugLog, getJSONFileContent, isResultError, writeFile } from 'avdeev-utils';
 
 /**
  * Пути к файлам, где хранятся данные уже отправленных сообщений с нотификациями в ТГ
@@ -19,6 +18,11 @@ const FILE_PATHS_TO_SAVE_DATA = {
   SEARCH_DATES: 'src/savedData/search_dates.json',
   FREE_PLACES: 'src/savedData/free_places.json',
 };
+
+/**
+ * Сюда будут писаться runtime-логи работы скрипта
+ */
+export const DEBUG_FILEPATH = 'src/tmp/runtime_execution_logs.txt';
 
 const OPTIONS_FOR_HTTP_REQUEST = {
   method: 'GET',
@@ -73,10 +77,6 @@ const getFreePlacesByDatesRangeResponseData = async (searchDates: SearchDates): 
   });
 };
 
-const saveDataToFile = async (filePath: string, dataToSave: Object) => {
-  await saveFileContent(filePath, dataToSave);
-};
-
 const getNotificationMessageForSearchDates = (searchDatesNow: SearchDates, searchDatesBefore: SearchDates) => {
   const requestUrl = 'https://n1194046.yclients.com/company/1086364/activity/select';
 
@@ -100,9 +100,13 @@ const getNotificationMessageForFreePlaces = (freePlace: FreePlace) => {
 };
 
 const checkFreePlacesFromDateRange = async (searchDates: SearchDates) => {
+  await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] Start.`);
+
   const freePlacesResponseData = await getFreePlacesByDatesRangeResponseData(searchDates);
 
   if (!freePlacesResponseData) {
+    await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] End. No 'freePlacesResponseData'.`);
+
     return Promise.resolve();
   }
 
@@ -117,17 +121,22 @@ const checkFreePlacesFromDateRange = async (searchDates: SearchDates) => {
     }));
 
   if (!filteredFreePlacesFromAPI.length) {
+    await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] End. No free places after filter 'only new places'.`);
+
     return Promise.resolve();
   }
 
   const filePath = FILE_PATHS_TO_SAVE_DATA.FREE_PLACES;
-  const placesFromFile = await getJSONFileContent(filePath);
+  const fileContentResult = await getJSONFileContent(filePath);
 
-  if (!placesFromFile) {
-    await saveDataToFile(filePath, filteredFreePlacesFromAPI);
+  if (isResultError(fileContentResult)) {
+    await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] End. Has not 'placesFromFile', trying to save, message = '${fileContentResult.errorMessage}'`);
+    await writeFile(filePath, filteredFreePlacesFromAPI);
 
     return Promise.resolve();
   }
+
+  const placesFromFile = fileContentResult.data as FreePlace[];
 
   /**
    * Сверяем места, сохраненные в файл, и места, что получили новые из API — есть ли новые?
@@ -142,6 +151,8 @@ const checkFreePlacesFromDateRange = async (searchDates: SearchDates) => {
   const newFreePlaces = getNewFreePlaces(placesFromFile, filteredFreePlacesFromAPI);
 
   if (!newFreePlaces.length) {
+    await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] End. Has not 'newFreePlaces' after compare.`);
+
     return Promise.resolve();
   }
 
@@ -154,20 +165,29 @@ const checkFreePlacesFromDateRange = async (searchDates: SearchDates) => {
   }
 
   const allPlaces = [...placesFromFile, ...newFreePlaces];
-  await saveDataToFile(filePath, allPlaces);
+  await writeFile(filePath, allPlaces);
+
+  await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] End OK.`);
 };
 
 export const run = async () => {
+  await debugLog(DEBUG_FILEPATH, '[run] Start.', {
+    isFirstLogMessage: true,
+  });
+
   await getSearchDatesResponseData()
     .then(async (searchDatesFromAPI) => {
       const filePath = FILE_PATHS_TO_SAVE_DATA.SEARCH_DATES;
-      const searchDatesFromFile = await getJSONFileContent(filePath);
+      const jsonFileContentResult = await getJSONFileContent(filePath);
 
-      if (!searchDatesFromFile) {
-        await saveDataToFile(filePath, searchDatesFromAPI);
+      if (isResultError(jsonFileContentResult)) {
+        await debugLog(DEBUG_FILEPATH, `[run] Has not searchDatesFromFile, trying to save, message = '${jsonFileContentResult.errorMessage}'`);
+        await writeFile(filePath, searchDatesFromAPI);
 
         return Promise.resolve();
       }
+
+      const searchDatesFromFile = jsonFileContentResult.data as SearchDates;
 
       const checkIsEquealContent = (contentA, contentB) => {
         return JSON.stringify(contentA) === JSON.stringify(contentB);
@@ -176,6 +196,8 @@ export const run = async () => {
       const isEqualContent = checkIsEquealContent(searchDatesFromFile, searchDatesFromAPI);
 
       if (isEqualContent) {
+        await debugLog(DEBUG_FILEPATH, `[run] Has not new updates (searchDates).`);
+
         return Promise.resolve();
       }
 
@@ -192,10 +214,11 @@ export const run = async () => {
        */
       if (!isOnlyMinDateUpdated) {
         await sendTelegramMessage(getNotificationMessageForSearchDates(searchDatesFromAPI, searchDatesFromFile));
-
-        await saveDataToFile(filePath, searchDatesFromAPI);
+        await writeFile(filePath, searchDatesFromAPI);
       }
 
       await checkFreePlacesFromDateRange(searchDatesFromAPI);
+
+      await debugLog(DEBUG_FILEPATH, `[run] End.`);
     });
 }

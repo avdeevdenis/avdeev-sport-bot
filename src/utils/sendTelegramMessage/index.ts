@@ -1,3 +1,6 @@
+import { debugLog } from 'avdeev-utils';
+import { DEBUG_FILEPATH } from '../../entryPoints';
+
 const token = process.env.TELEGRAM_API_TOKEN;
 const TelegramBot = require('node-telegram-bot-api');
 
@@ -26,6 +29,8 @@ export const sendTelegramMessage = async (messageText: string): Promise<void> =>
       AvdeevSportBotInstance = AvdeevSportBot;
     }
   }
+
+  await debugLog(DEBUG_FILEPATH, `[sendTelegramMessage] To send message to chatId = '${STATIC_CHAT_ID}' with message = '${messageText}'`);
 
   /**
    * API https://core.telegram.org/bots/api#sendmessage
