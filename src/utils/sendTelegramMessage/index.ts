@@ -10,10 +10,7 @@ let AvdeevSportBotInstance = null;
  * Это ID нашего чата в телеграме, куда бот присылает сообщения
  * Получил так — https://stackoverflow.com/a/38388851
  */
-const STATIC_CHAT_ID = '-1002172527546';
-
-// А это мой ID-шник :)
-// const STATIC_CHAT_ID = '348916796';
+const STATIC_CHAT_ID = process.env.TELEGRAM_SEND_CHAT_ID;
 
 export const sendTelegramMessage = async (messageText: string): Promise<void> => {
   if (!messageText || !messageText.length) {
