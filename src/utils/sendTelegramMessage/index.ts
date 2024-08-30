@@ -44,17 +44,3 @@ export const sendTelegramMessage = async (messageText: string): Promise<void> =>
 
   return Promise.resolve();
 };
-
-/**
- * '2022-03-25 10:00:00' => 25.03 10:00
- */
-const formatDateString = (dateString) => {
-  return dateString.replace(/([0-9]{4})-([0-9]{2})-([0-9]{2})\s([0-9]{2}:[0-9]{2})/, (_all, _year, month, day, time) => {
-    return day + '.' + month + '\n' + time;
-  });
-}
-
-const getMessageWithSlot = (slotText, specialistData) => {
-  return '🙋‍♀️ ' + specialistData.fio + '\n' +
-    '*' + formatDateString(slotText) + '* | [записаться](' + specialistData.url + ')\n';
-};

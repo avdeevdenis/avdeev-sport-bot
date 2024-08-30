@@ -7,8 +7,7 @@ process.env.NTBA_FIX_319 = '1';
 import { sendNetworkRequest } from '../utils/sendNetworkRequest';
 import { sendTelegramMessage } from '../utils/sendTelegramMessage';
 import { AxiosResponseYClientsSearchDates, AxiosResponseYClientsFreePlaces, SearchDates, FreePlace, AxiosResponseYClientsFreePlaceItem } from '../typings';
-import { delay } from '../utils/delay';
-import { debugLog, getJSONFileContent, isResultError, writeFile } from 'avdeev-utils';
+import { debugLog, getJSONFileContent, writeFile, isExecuteError, delay } from 'avdeev-utils';
 
 /**
  * Пути к файлам, где хранятся данные уже отправленных сообщений с нотификациями в ТГ
@@ -129,7 +128,7 @@ const checkFreePlacesFromDateRange = async (searchDates: SearchDates) => {
   const filePath = FILE_PATHS_TO_SAVE_DATA.FREE_PLACES;
   const fileContentResult = await getJSONFileContent(filePath);
 
-  if (isResultError(fileContentResult)) {
+  if (isExecuteError(fileContentResult)) {
     await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] End. Has not 'placesFromFile', trying to save, message = '${fileContentResult.errorMessage}'`);
     await writeFile(filePath, filteredFreePlacesFromAPI);
 
@@ -175,50 +174,53 @@ export const run = async () => {
     isFirstLogMessage: true,
   });
 
-  await getSearchDatesResponseData()
-    .then(async (searchDatesFromAPI) => {
-      const filePath = FILE_PATHS_TO_SAVE_DATA.SEARCH_DATES;
-      const jsonFileContentResult = await getJSONFileContent(filePath);
+  const searchDatesFromAPI = await getSearchDatesResponseData();
 
-      if (isResultError(jsonFileContentResult)) {
-        await debugLog(DEBUG_FILEPATH, `[run] Has not searchDatesFromFile, trying to save, message = '${jsonFileContentResult.errorMessage}'`);
-        await writeFile(filePath, searchDatesFromAPI);
+  if (!searchDatesFromAPI) {
+    return Promise.resolve();
+  }
 
-        return Promise.resolve();
-      }
+  const filePath = FILE_PATHS_TO_SAVE_DATA.SEARCH_DATES;
+  const jsonFileContentResult = await getJSONFileContent(filePath);
 
-      const searchDatesFromFile = jsonFileContentResult.data as SearchDates;
+  if (isExecuteError(jsonFileContentResult)) {
+    await debugLog(DEBUG_FILEPATH, `[run] Has not searchDatesFromFile, trying to save, message = '${jsonFileContentResult.errorMessage}'`);
+    await writeFile(filePath, searchDatesFromAPI);
 
-      const checkIsEquealContent = (contentA, contentB) => {
-        return JSON.stringify(contentA) === JSON.stringify(contentB);
-      };
+    return Promise.resolve();
+  }
 
-      const isEqualContent = checkIsEquealContent(searchDatesFromFile, searchDatesFromAPI);
+  const searchDatesFromFile = jsonFileContentResult.data as SearchDates;
 
-      if (isEqualContent) {
-        await debugLog(DEBUG_FILEPATH, `[run] Has not new updates (searchDates).`);
+  const checkIsEquealContent = (contentA, contentB) => {
+    return JSON.stringify(contentA) === JSON.stringify(contentB);
+  };
 
-        return Promise.resolve();
-      }
+  const isEqualContent = checkIsEquealContent(searchDatesFromFile, searchDatesFromAPI);
 
-      const isOnlyMinDateUpdated = searchDatesFromAPI.minDate !== searchDatesFromFile.minDate;
+  if (isEqualContent) {
+    await debugLog(DEBUG_FILEPATH, `[run] Has not new updates (searchDates).`);
 
-      /**
-       * Не интересно получать оповещения, где меняется мин. дата вида:
-       * 
-       * 🎾 Доступные для бронирования даты изменились. 
-       * - Было: 
-       * 2024-08-29 — 2024-09-03
-       * - Сейчас: 
-       * 2024-08-30 — 2024-09-03
-       */
-      if (!isOnlyMinDateUpdated) {
-        await sendTelegramMessage(getNotificationMessageForSearchDates(searchDatesFromAPI, searchDatesFromFile));
-        await writeFile(filePath, searchDatesFromAPI);
-      }
+    return Promise.resolve();
+  }
 
-      await checkFreePlacesFromDateRange(searchDatesFromAPI);
+  const isOnlyMinDateUpdated = searchDatesFromAPI.minDate !== searchDatesFromFile.minDate;
 
-      await debugLog(DEBUG_FILEPATH, `[run] End.`);
-    });
+  /**
+   * Не интересно получать оповещения, где меняется мин. дата вида:
+   * 
+   * 🎾 Доступные для бронирования даты изменились. 
+   * - Было: 
+   * 2024-08-29 — 2024-09-03
+   * - Сейчас: 
+   * 2024-08-30 — 2024-09-03
+   */
+  if (!isOnlyMinDateUpdated) {
+    await sendTelegramMessage(getNotificationMessageForSearchDates(searchDatesFromAPI, searchDatesFromFile));
+    await writeFile(filePath, searchDatesFromAPI);
+  }
+
+  await checkFreePlacesFromDateRange(searchDatesFromAPI);
+
+  await debugLog(DEBUG_FILEPATH, `[run] End.`);
 }
