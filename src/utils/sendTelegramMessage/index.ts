@@ -10,7 +10,7 @@ let AvdeevSportBotInstance = null;
  * Это ID нашего чата в телеграме, куда бот присылает сообщения
  * Получил так — https://stackoverflow.com/a/38388851
  */
-const STATIC_CHAT_ID = '-4503094230';
+const STATIC_CHAT_ID = '-1002172527546';
 
 // А это мой ID-шник :)
 // const STATIC_CHAT_ID = '348916796';
