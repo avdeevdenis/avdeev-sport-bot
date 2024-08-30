@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "engines": {
+    "npm": "^9.9.3"
+  },
   "scripts": {
     "dev": "ts-node ./src/run/index",
     "cron:start": "forever start -v -c ts-node ./src/crontask/index.ts",
@@ -21,6 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.2.0",
+    "npm": "^9.9.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   }
