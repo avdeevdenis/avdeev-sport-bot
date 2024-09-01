@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "engines": {
-    "npm": "^10"
+    "npm": "^9"
   },
   "scripts": {
     "dev": "ts-node ./src/run/index",
@@ -15,7 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "avdeev-utils": "^1.2.0",
+    "avdeev-utils": "^2.0.1",
     "axios": "^1.7.3",
     "dotenv": "^16.4.5",
     "forever": "^4.0.3",

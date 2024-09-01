@@ -5,9 +5,8 @@ require('dotenv').config();
 process.env.NTBA_FIX_319 = '1';
 
 import { sendNetworkRequest } from '../utils/sendNetworkRequest';
-import { sendTelegramMessage } from '../utils/sendTelegramMessage';
 import { AxiosResponseYClientsSearchDates, AxiosResponseYClientsFreePlaces, SearchDates, FreePlace, AxiosResponseYClientsFreePlaceItem } from '../typings';
-import { debugLog, getJSONFileContent, writeFile, isExecuteError, delay } from 'avdeev-utils';
+import { debugLog, getJSONFileContent, writeFile, isExecuteError, delay, TelegramBotAPI, isExecuteSuccess } from 'avdeev-utils';
 
 /**
  * Пути к файлам, где хранятся данные уже отправленных сообщений с нотификациями в ТГ
@@ -31,9 +30,6 @@ const OPTIONS_FOR_HTTP_REQUEST = {
     'Authorization': 'Bearer gtcwf654agufy25gsadh',
   },
 };
-
-// NOT DDOS!
-const TELEGRAM_WAIT_TIME_BETWEEN_MESSAGES_SEND = 400;
 
 const getSearchDatesResponseData = async (): Promise<SearchDates> => {
   const url = 'https://n1194046.yclients.com/api/v1/activity/1086364/search_dates_range';
@@ -157,10 +153,24 @@ const checkFreePlacesFromDateRange = async (searchDates: SearchDates) => {
 
   for (let i = 0; i < newFreePlaces.length; i++) {
     const freePlace = newFreePlaces[i];
-    await sendTelegramMessage(getNotificationMessageForFreePlaces(freePlace));
 
-    // NOT DDOS!
-    await delay(TELEGRAM_WAIT_TIME_BETWEEN_MESSAGES_SEND);
+    const chatId = process.env.TELEGRAM_SEND_CHAT_ID;
+    const messageText = getNotificationMessageForFreePlaces(freePlace);
+
+    await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] To send message [${i}][start] to chatId = '${chatId}' with message = '${messageText}'`);
+
+    const sendMessageData = await TGBotAPI.message(chatId, messageText);
+
+    if (isExecuteError(sendMessageData)) {
+      await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] To send message [${i}][error] to chatId = '${chatId}' with message = '${messageText}'`, {
+        isError: true,
+        data: {
+          errorMessage: sendMessageData.errorMessage,
+        }
+      });
+    } else if (isExecuteSuccess(sendMessageData)) {
+      await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] To send message [${i}][success] to chatId = '${chatId}' with message = '${messageText}'`);
+    }
   }
 
   const allPlaces = [...placesFromFile, ...newFreePlaces];
@@ -168,6 +178,18 @@ const checkFreePlacesFromDateRange = async (searchDates: SearchDates) => {
 
   await debugLog(DEBUG_FILEPATH, `[checkFreePlacesFromDateRange] End OK.`);
 };
+
+let TGBotAPI: TelegramBotAPI = null;
+
+const initTelegramBot = () => {
+  if (!TGBotAPI) {
+    TGBotAPI = new TelegramBotAPI({
+      token: process.env.TELEGRAM_API_TOKEN,
+    });
+  }
+}
+
+initTelegramBot();
 
 export const run = async () => {
   await debugLog(DEBUG_FILEPATH, '[run] Start.', {
@@ -177,6 +199,10 @@ export const run = async () => {
   const searchDatesFromAPI = await getSearchDatesResponseData();
 
   if (!searchDatesFromAPI) {
+    await debugLog(DEBUG_FILEPATH, `[run] Has not searchDatesFromAPI.`, {
+      isError: true,
+    });
+
     return Promise.resolve();
   }
 
@@ -216,8 +242,26 @@ export const run = async () => {
    * 2024-08-30 — 2024-09-03
    */
   if (!isOnlyMinDateUpdated) {
-    await sendTelegramMessage(getNotificationMessageForSearchDates(searchDatesFromAPI, searchDatesFromFile));
+    const chatId = process.env.TELEGRAM_SEND_CHAT_ID;
+    const messageText = getNotificationMessageForSearchDates(searchDatesFromAPI, searchDatesFromFile);
+
+    await debugLog(DEBUG_FILEPATH, `[run] To send message [start] to chatId = '${chatId}' with message = '${messageText}'`);
+    const sendMessageData = await TGBotAPI.message(chatId, messageText);
+
+    if (isExecuteError(sendMessageData)) {
+      await debugLog(DEBUG_FILEPATH, `[run] To send message [error] to chatId = '${chatId}' with message = '${messageText}'`, {
+        isError: true,
+        data: {
+          errorMessage: sendMessageData.errorMessage,
+        }
+      });
+    } else if (isExecuteSuccess(sendMessageData)) {
+      await debugLog(DEBUG_FILEPATH, `[run] To send message [success] to chatId = '${chatId}' with message = '${messageText}'`);
+    }
+
     await writeFile(filePath, searchDatesFromAPI);
+  } else {
+    await debugLog(DEBUG_FILEPATH, `[run] No new updates with isOnlyMinDateUpdated.`);
   }
 
   await checkFreePlacesFromDateRange(searchDatesFromAPI);
